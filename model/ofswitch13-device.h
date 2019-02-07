@@ -354,6 +354,11 @@ public:
    */
   typedef void (*DeviceTracedCallback)(Ptr<const OFSwitch13Device> dev);
 
+  /**
+   * Print flow tables
+   */
+  void PrintFlowTables();
+
 protected:
   // Inherited from Object
   virtual void DoDispose (void);
