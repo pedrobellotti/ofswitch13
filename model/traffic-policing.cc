@@ -1,6 +1,6 @@
 /* -*-  Mode: C++; c-file-style: "gnu"; indent-tabs-mode:nil; -*- */
 /*
- * Copyright (c) 2015 University of Campinas (Unicamp)
+ * Copyright (c) 2019 Federal University of Juiz de Fora (UFJF)
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -15,7 +15,8 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  *
- * Author: Luciano Chaves <luciano@lrc.ic.unicamp.br>
+ * Author: Pedro Bellotti <pedro.bellotti@ice.ufjf.br>
+ * Author: João Victor Guimarães <joaoguimaraes@ice.ufjf.br>
  */
 
 #include "traffic-policing.h"
@@ -29,11 +30,11 @@ TrafficPolicing::TrafficPolicing ()
   : m_bucketSize (0),
   m_refillTime (Seconds (0)),
   m_lastRefill (Simulator::Now ()),
-  m_expectedThroughput (0),
+  m_rate (0),
   m_tokens (0),
   m_consumedTokens (0)
 {
-  ScheduleRefill ();
+  Timeout ();
 }
 
 TypeId
@@ -43,56 +44,46 @@ TrafficPolicing::GetTypeId (void)
     .SetParent<Object> ()
     .SetGroupName ("OFSwitch13")
     .AddConstructor<TrafficPolicing> ()
-    .AddAttribute ("RefillInterval",
+    .AddAttribute ("TimeoutInterval",
                    "The interval between each token refill.",
-                   TypeId::ATTR_SGC,
                    TimeValue (MilliSeconds (100)),
                    MakeTimeAccessor (&TrafficPolicing::m_refillTime),
                    MakeTimeChecker (MilliSeconds (1), MilliSeconds (1000)))
     .AddAttribute ("BucketSize",
-                   "Size of the bucket",
-                   TypeId::ATTR_SGC,
+                   "Size of the bucket in bits",
                    UintegerValue (0),
                    MakeUintegerAccessor (&TrafficPolicing::m_bucketSize),
                    MakeUintegerChecker<uint32_t> ())
-    .AddAttribute ("ExpectedThroughput",
-                   "Expected throughput",
-                   TypeId::ATTR_SGC,
+    .AddAttribute ("Rate",
+                   "Expected throughput (rate)",
                    DataRateValue (DataRate ("10Mbps")),
-                   MakeDataRateAccessor (&TrafficPolicing::m_expectedThroughput),
+                   MakeDataRateAccessor (&TrafficPolicing::m_rate),
                    MakeDataRateChecker ())
   ;
   return tid;
 }
 
-TypeId
-TrafficPolicing::GetInstanceTypeId (void) const
-{
-  return GetTypeId ();
-}
-
 void
-TrafficPolicing::ScheduleRefill ()
+TrafficPolicing::Timeout ()
 {
-  uint64_t addTokens = (m_expectedThroughput.GetBitRate () * m_refillTime.GetMilliSeconds ()) / 1000;
-  uint64_t maxTokens = m_expectedThroughput.GetBitRate ();
-  m_tokens = std::min (m_tokens + addTokens, maxTokens);
+  NS_LOG_FUNCTION (this);
+  Time elapsed = Simulator::Now () - m_lastRefill;
+  uint32_t addTokens = (m_rate.GetBitRate () * elapsed.GetMilliSeconds ()) / 1000;
+  std::cout << "add " << addTokens << std::endl;
+  m_tokens = std::min (m_tokens + addTokens, m_bucketSize);
+  std::cout << "tokens " << m_tokens << std::endl;
   m_lastRefill = Simulator::Now ();
-  Simulator::Schedule (m_refillTime, &TrafficPolicing::ScheduleRefill, this);
-}
-
-void
-TrafficPolicing::removeTokens (uint32_t tokens)
-{
-  m_tokens -= tokens;
-  m_consumedTokens += tokens;
+  Simulator::Schedule (m_refillTime, &TrafficPolicing::Timeout, this);
 }
 
 bool
-TrafficPolicing::checkTokens (uint32_t pktSize)
+TrafficPolicing::removeTokens (uint32_t pktSize)
 {
+  NS_LOG_FUNCTION (this);
   if (m_tokens >= pktSize)
     {
+      m_tokens -= pktSize;
+      m_consumedTokens += pktSize;
       return true;
     }
   else
@@ -101,13 +92,15 @@ TrafficPolicing::checkTokens (uint32_t pktSize)
     }
 }
 
+/*Função para testes - será removida*/
 void
 TrafficPolicing::imprime ()
 {
+  NS_LOG_FUNCTION (this);
   std::cout << "m_bucketSize: " << m_bucketSize << std::endl;
   std::cout << "m_refillTime: " << m_refillTime << std::endl;
   std::cout << "m_lastRefill: " << m_lastRefill << std::endl;
-  std::cout << "m_expectedThroughput: " << m_expectedThroughput << std::endl;
+  std::cout << "m_rate: " << m_rate << std::endl;
   std::cout << "m_tokens: " << m_tokens << std::endl;
   std::cout << "m_consumedTokens: " << m_consumedTokens << std::endl;
 

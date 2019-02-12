@@ -373,12 +373,6 @@ public:
    */
   void AssignRateLimiter (uint32_t portNo, Ptr<TrafficPolicing> ratePointer);
 
-  /**
-   * Unassign a port to a rate limiter.
-   * \param portNo The port number
-   */
-  void UnassignRateLimiter (uint32_t portNo);
-
 protected:
   // Inherited from Object
   virtual void DoDispose (void);

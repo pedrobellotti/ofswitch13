@@ -1,6 +1,6 @@
 /* -*-  Mode: C++; c-file-style: "gnu"; indent-tabs-mode:nil; -*- */
 /*
- * Copyright (c) 2015 University of Campinas (Unicamp)
+ * Copyright (c) 2019 Federal University of Juiz de Fora (UFJF)
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -15,7 +15,8 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  *
- * Author: Luciano Chaves <luciano@lrc.ic.unicamp.br>
+ * Author: Pedro Bellotti <pedro.bellotti@ice.ufjf.br>
+ * Author: João Victor Guimarães <joaoguimaraes@ice.ufjf.br>
  */
 
 #ifndef TRAFFIC_POLICING_H
@@ -39,7 +40,6 @@ public:
    * \return The object TypeId.
    */
   static TypeId GetTypeId (void);
-  virtual TypeId GetInstanceTypeId (void) const;
 
   TrafficPolicing ();            //!< Default constructor
   virtual ~TrafficPolicing ();   //!< Dummy destructor, see DoDispose
@@ -57,33 +57,28 @@ public:
   /**
    * Removes tokens from the bucket.
    * \param tokens The amount of tokens to be removed
+   * \return True if there were enough tokens, False if not
    */
-  void removeTokens (uint32_t tokens);
-
-  /**
-   * Checks whether or not the bucket has enough tokens for the packet.
-   * \param pktSize Size of the packet
-   */
-  bool checkTokens (uint32_t pktSize);
+  bool removeTokens (uint32_t pktSize);
 
   /* TESTE */
   void imprime ();
+
+protected:
+  // Inherited from Object
+  virtual void DoDispose (void);
 
 private:
   uint32_t m_bucketSize;  //!< Bucket size (burst size)
   Time m_refillTime;  //!< Time between each token refill
   Time m_lastRefill;  //!< Time since last refill
-  DataRate m_expectedThroughput;  //!< Expected throughput
+  DataRate m_rate;  //!< Expected throughput
   uint32_t m_tokens;  //!< Amount of tokens stored
   uint32_t m_consumedTokens;  //!< Total amount of tokens consumed
   /**
    * Schedules the next refill.
    */
-  void ScheduleRefill ();
-
-protected:
-  // Inherited from Object
-  virtual void DoDispose (void);
+  void Timeout ();
 };
 
 } // namespace ns3

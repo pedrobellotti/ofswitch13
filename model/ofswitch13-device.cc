@@ -658,12 +658,6 @@ OFSwitch13Device::AssignRateLimiter (uint32_t portNo, Ptr<TrafficPolicing> rateP
   m_ports.at (portNo)->SetRateLimiter (ratePointer);
 }
 
-void
-OFSwitch13Device::UnassignRateLimiter (uint32_t portNo)
-{
-  m_ports.at (portNo)->SetRateLimiter (0);
-}
-
 /********** Protected methods **********/
 void
 OFSwitch13Device::DoDispose ()
