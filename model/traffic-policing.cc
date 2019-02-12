@@ -27,13 +27,13 @@ NS_OBJECT_ENSURE_REGISTERED (TrafficPolicing);
 
 TrafficPolicing::TrafficPolicing ()
   : m_bucketSize (0),
-  m_refillTime (Seconds(0)),
+  m_refillTime (Seconds (0)),
   m_lastRefill (Simulator::Now ()),
   m_expectedThroughput (0),
   m_tokens (0),
   m_consumedTokens (0)
 {
-  ScheduleRefill();
+  ScheduleRefill ();
 }
 
 TypeId
@@ -74,7 +74,7 @@ TrafficPolicing::GetInstanceTypeId (void) const
 void
 TrafficPolicing::ScheduleRefill ()
 {
-  uint64_t addTokens = (m_expectedThroughput.GetBitRate() * m_refillTime.GetMilliSeconds()) / 1000;
+  uint64_t addTokens = (m_expectedThroughput.GetBitRate () * m_refillTime.GetMilliSeconds ()) / 1000;
   uint64_t maxTokens = m_expectedThroughput.GetBitRate ();
   m_tokens = std::min (m_tokens + addTokens, maxTokens);
   m_lastRefill = Simulator::Now ();
@@ -92,17 +92,18 @@ bool
 TrafficPolicing::checkTokens (uint32_t pktSize)
 {
   if (m_tokens >= pktSize)
-  {
-    return true;
-  }
+    {
+      return true;
+    }
   else
-  {
-    return false;
-  }  
+    {
+      return false;
+    }
 }
 
 void
-TrafficPolicing::imprime(){
+TrafficPolicing::imprime ()
+{
   std::cout << "m_bucketSize: " << m_bucketSize << std::endl;
   std::cout << "m_refillTime: " << m_refillTime << std::endl;
   std::cout << "m_lastRefill: " << m_lastRefill << std::endl;

@@ -67,7 +67,7 @@ public:
   bool checkTokens (uint32_t pktSize);
 
   /* TESTE */
-  void imprime();
+  void imprime ();
 
 private:
   uint32_t m_bucketSize;  //!< Bucket size (burst size)

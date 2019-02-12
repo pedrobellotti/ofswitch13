@@ -655,13 +655,13 @@ OFSwitch13Device::CreateRateLimiter ()
 void
 OFSwitch13Device::AssignRateLimiter (uint32_t portNo, Ptr<TrafficPolicing> ratePointer)
 {
-  m_ports.at(portNo)->SetRateLimiter(ratePointer);
+  m_ports.at (portNo)->SetRateLimiter (ratePointer);
 }
 
 void
 OFSwitch13Device::UnassignRateLimiter (uint32_t portNo)
 {
-  m_ports.at(portNo)->SetRateLimiter(0);
+  m_ports.at (portNo)->SetRateLimiter (0);
 }
 
 /********** Protected methods **********/
@@ -1524,7 +1524,8 @@ OFSwitch13Device::PipelinePacket::HasId (uint64_t id)
 
 /* TESTES */
 void
-OFSwitch13Device::PrintFlowTables(){
+OFSwitch13Device::PrintFlowTables ()
+{
   struct flow_table *table;
   struct flow_entry *entry;
   size_t level = 0;
@@ -1536,8 +1537,8 @@ OFSwitch13Device::PrintFlowTables(){
       LIST_FOR_EACH (entry, struct flow_entry, match_node, &table->match_entries)
       {
         entry_count++;
-        std::cout<<"Entry #" << entry_count << std::endl;
-        std::string str = ofl_structs_flow_stats_to_string(entry->stats, 0);
+        std::cout << "Entry #" << entry_count << std::endl;
+        std::string str = ofl_structs_flow_stats_to_string (entry->stats, 0);
         for (std::string::size_type j = 0; j < str.size (); j++)
           {
             if (str[j] == '{' || str[j] == '[')
@@ -1552,14 +1553,14 @@ OFSwitch13Device::PrintFlowTables(){
               }
             if (str[j] == ',' && level == 1)
               {
-                std::cout<<std::endl;
+                std::cout << std::endl;
               }
             else if (str[j] != '"')
               {
-                std::cout<<str[j];
+                std::cout << str[j];
               }
           }
-        std::cout<<std::endl<<std::endl;
+        std::cout << std::endl << std::endl;
       }
       entry_count = 0;
     }

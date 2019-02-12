@@ -358,7 +358,7 @@ public:
   /**
    * Print flow tables
    */
-  void PrintFlowTables();
+  void PrintFlowTables ();
 
   /**
    * Creates a new Traffic Policing pointer.
