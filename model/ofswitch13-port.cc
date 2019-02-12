@@ -51,7 +51,8 @@ OFSwitch13Port::OFSwitch13Port ()
   m_portNo (0),
   m_swPort (0),
   m_netDev (0),
-  m_openflowDev (0)
+  m_openflowDev (0),
+  m_rateLimiter (0)
 {
   NS_LOG_FUNCTION (this);
 }
@@ -76,6 +77,7 @@ OFSwitch13Port::DoDispose ()
   m_swPort = 0;
   m_openflowDev = 0;
   m_netDev = 0;
+  m_rateLimiter = 0;
 }
 
 TypeId
@@ -231,6 +233,18 @@ OFSwitch13Port::GetSwitchDevice (void) const
   return m_openflowDev;
 }
 
+Ptr<TrafficPolicing>
+OFSwitch13Port::GetRateLimiter (void) const
+{
+  return m_rateLimiter;
+}
+
+void
+OFSwitch13Port::SetRateLimiter (Ptr<TrafficPolicing> rl)
+{
+  m_rateLimiter = rl;
+}
+
 bool
 OFSwitch13Port::PortUpdateState ()
 {
@@ -328,6 +342,21 @@ OFSwitch13Port::Receive (Ptr<NetDevice> device, Ptr<const Packet> packet,
       NS_LOG_WARN ("This port is down or inoperating. Discarding packet");
       return false;
     }
+
+  // Check the rate limiter bucket
+  if(m_rateLimiter != 0)
+  {
+    uint32_t pktSize = packet->GetSize () * 8;
+    if (!m_rateLimiter->checkTokens (pktSize))
+    {
+      NS_LOG_WARN ("Not enough tokens in the bucket to transfer the packet. Discarding");
+      return false;
+    }
+    else
+    {
+      m_rateLimiter->removeTokens(pktSize);
+    }
+  }
 
   // Update port stats
   m_swPort->stats->rx_packets++;

@@ -27,6 +27,7 @@
 #include <ns3/traced-callback.h>
 #include "ofswitch13-interface.h"
 #include "ofswitch13-queue.h"
+#include "traffic-policing.h"
 
 namespace ns3 {
 
@@ -100,6 +101,18 @@ public:
   Ptr<OFSwitch13Device> GetSwitchDevice (void) const;
 
   /**
+   * Get the TrafficPolicing pointer from this port.
+   * \return A pointer to the corresponding TrafficPolicing.
+   */
+  Ptr<TrafficPolicing> GetRateLimiter (void) const;
+
+  /**
+   * Set the TrafficPolicing pointer for this port.
+   * \param A pointer to the TrafficPolicing.
+   */
+  void SetRateLimiter (Ptr<TrafficPolicing> rl);
+
+  /**
    * Update the port state field based on NetDevice status, and notify the
    * controller when changes occurs.
    * \return true if the state of the port has changed, false otherwise.
@@ -164,6 +177,7 @@ private:
   Ptr<OFSwitch13Queue>      m_portQueue;    //!< OpenFlow port Queue.
   ObjectFactory             m_factQueue;    //!< Factory for port queue.
   Ptr<OFSwitch13Device>     m_openflowDev;  //!< OpenFlow device.
+  Ptr<TrafficPolicing>      m_rateLimiter;  //!< Rate limiter policing.
 };
 
 } // namespace ns3

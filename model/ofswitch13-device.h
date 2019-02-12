@@ -29,6 +29,7 @@
 #include <ns3/traced-value.h>
 #include "ofswitch13-interface.h"
 #include "ofswitch13-socket-handler.h"
+#include "traffic-policing.h"
 
 namespace ns3 {
 
@@ -359,6 +360,25 @@ public:
    */
   void PrintFlowTables();
 
+  /**
+   * Creates a new Traffic Policing pointer.
+   * \return The pointer for the new Traffic Policing pointer.
+   */
+  Ptr<TrafficPolicing> CreateRateLimiter ();
+
+  /**
+   * Assign a port to a rate limiter.
+   * \param portNo The port number
+   * \param ratePointer The pointer for the rate limiter
+   */
+  void AssignRateLimiter (uint32_t portNo, Ptr<TrafficPolicing> ratePointer);
+
+  /**
+   * Unassign a port to a rate limiter.
+   * \param portNo The port number
+   */
+  void UnassignRateLimiter (uint32_t portNo);
+
 protected:
   // Inherited from Object
   virtual void DoDispose (void);
@@ -588,6 +608,9 @@ private:
   /** Structure to save the list of active controllers. */
   typedef std::vector<Ptr<OFSwitch13Device::RemoteController> > CtrlList_t;
 
+  /** Structure to save traffic policing pointers. */
+  typedef std::vector<Ptr<TrafficPolicing> > PolicingList_t;
+
   /** Structure to map datapath id to OpenFlow device. */
   typedef std::map<uint64_t, Ptr<OFSwitch13Device> > DpIdDevMap_t;
 
@@ -653,6 +676,8 @@ private:
   uint64_t          m_cMeterMod;    //!< Pipeline meter mod counter.
   uint64_t          m_cPacketIn;    //!< Pipeline packet in counter.
   uint64_t          m_cPacketOut;   //!< Pipeline packet out counter.
+
+  PolicingList_t    m_rateLimiters; //!< Collection of active Traffic Policing pointers.
 
   static uint64_t   m_globalDpId;   //!< Global counter for datapath IDs.
   static uint64_t   m_globalPktId;  //!< Global counter for packets IDs.

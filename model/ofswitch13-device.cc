@@ -644,6 +644,26 @@ OFSwitch13Device::GetDevice (uint64_t id)
   NS_ABORT_MSG ("Error when retrieving datapath.");
 }
 
+Ptr<TrafficPolicing>
+OFSwitch13Device::CreateRateLimiter ()
+{
+  Ptr<TrafficPolicing> rateLimiter = CreateObject<TrafficPolicing> ();
+  m_rateLimiters.push_back (rateLimiter);
+  return rateLimiter;
+}
+
+void
+OFSwitch13Device::AssignRateLimiter (uint32_t portNo, Ptr<TrafficPolicing> ratePointer)
+{
+  m_ports.at(portNo)->SetRateLimiter(ratePointer);
+}
+
+void
+OFSwitch13Device::UnassignRateLimiter (uint32_t portNo)
+{
+  m_ports.at(portNo)->SetRateLimiter(0);
+}
+
 /********** Protected methods **********/
 void
 OFSwitch13Device::DoDispose ()
