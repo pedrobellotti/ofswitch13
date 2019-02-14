@@ -19,71 +19,64 @@
  * Author: João Victor Guimarães <joaoguimaraes@ice.ufjf.br>
  */
 
-#include "traffic-policing.h"
+#include "token-bucket.h"
 
 namespace ns3 {
 
-NS_LOG_COMPONENT_DEFINE ("TrafficPolicing");
-NS_OBJECT_ENSURE_REGISTERED (TrafficPolicing);
+NS_LOG_COMPONENT_DEFINE ("TokenBucket");
+NS_OBJECT_ENSURE_REGISTERED (TokenBucket);
 
-TrafficPolicing::TrafficPolicing ()
-  : m_bucketSize (0),
-  m_refillTime (Seconds (0)),
-  m_lastRefill (Simulator::Now ()),
-  m_rate (0),
-  m_tokens (0),
-  m_consumedTokens (0)
+TokenBucket::TokenBucket ()
+  : m_lastRefill (Simulator::Now ()),
+  m_tokens (0)
 {
-  Timeout ();
+  NS_LOG_FUNCTION (this);
 }
 
 TypeId
-TrafficPolicing::GetTypeId (void)
+TokenBucket::GetTypeId (void)
 {
-  static TypeId tid = TypeId ("ns3::TrafficPolicing")
+  static TypeId tid = TypeId ("ns3::TokenBucket")
     .SetParent<Object> ()
     .SetGroupName ("OFSwitch13")
-    .AddConstructor<TrafficPolicing> ()
+    .AddConstructor<TokenBucket> ()
     .AddAttribute ("TimeoutInterval",
                    "The interval between each token refill.",
                    TimeValue (MilliSeconds (100)),
-                   MakeTimeAccessor (&TrafficPolicing::m_refillTime),
+                   MakeTimeAccessor (&TokenBucket::m_timeout),
                    MakeTimeChecker (MilliSeconds (1), MilliSeconds (1000)))
-    .AddAttribute ("BucketSize",
-                   "Size of the bucket in bits",
+    .AddAttribute ("Size",
+                   "The size of the bucket, in bits.",
                    UintegerValue (0),
-                   MakeUintegerAccessor (&TrafficPolicing::m_bucketSize),
+                   MakeUintegerAccessor (&TokenBucket::m_size),
                    MakeUintegerChecker<uint32_t> ())
     .AddAttribute ("Rate",
-                   "Expected throughput (rate)",
-                   DataRateValue (DataRate ("10Mbps")),
-                   MakeDataRateAccessor (&TrafficPolicing::m_rate),
+                   "The average long-run token rate.",
+                   DataRateValue (DataRate ("100Gb/s")),
+                   MakeDataRateAccessor (&TokenBucket::m_rate),
                    MakeDataRateChecker ())
   ;
   return tid;
 }
 
 void
-TrafficPolicing::Timeout ()
+TokenBucket::Timeout ()
 {
   NS_LOG_FUNCTION (this);
   Time elapsed = Simulator::Now () - m_lastRefill;
   uint32_t addTokens = (m_rate.GetBitRate () * elapsed.GetMilliSeconds ()) / 1000;
-  std::cout << "add " << addTokens << std::endl;
-  m_tokens = std::min (m_tokens + addTokens, m_bucketSize);
-  std::cout << "tokens " << m_tokens << std::endl;
+  m_tokens = std::min (m_tokens + addTokens, m_size);
   m_lastRefill = Simulator::Now ();
-  Simulator::Schedule (m_refillTime, &TrafficPolicing::Timeout, this);
+  Simulator::Schedule (m_timeout, &TokenBucket::Timeout, this);
 }
 
 bool
-TrafficPolicing::removeTokens (uint32_t pktSize)
+TokenBucket::removeTokens (uint32_t numTokens)
 {
-  NS_LOG_FUNCTION (this);
-  if (m_tokens >= pktSize)
+  NS_LOG_FUNCTION (this << numTokens);
+  if (m_tokens >= numTokens)
     {
-      m_tokens -= pktSize;
-      m_consumedTokens += pktSize;
+      m_tokens -= numTokens;
       return true;
     }
   else
@@ -94,28 +87,39 @@ TrafficPolicing::removeTokens (uint32_t pktSize)
 
 /*Função para testes - será removida*/
 void
-TrafficPolicing::imprime ()
+TokenBucket::imprime ()
 {
   NS_LOG_FUNCTION (this);
-  std::cout << "m_bucketSize: " << m_bucketSize << std::endl;
-  std::cout << "m_refillTime: " << m_refillTime << std::endl;
+  std::cout << "m_size: " << m_size << std::endl;
+  std::cout << "m_timeout: " << m_timeout << std::endl;
   std::cout << "m_lastRefill: " << m_lastRefill << std::endl;
   std::cout << "m_rate: " << m_rate << std::endl;
   std::cout << "m_tokens: " << m_tokens << std::endl;
-  std::cout << "m_consumedTokens: " << m_consumedTokens << std::endl;
-
 }
 
-TrafficPolicing::~TrafficPolicing ()
+TokenBucket::~TokenBucket ()
 {
   NS_LOG_FUNCTION (this);
 }
+
 /********** Protected methods **********/
 void
-TrafficPolicing::DoDispose ()
+TokenBucket::DoDispose ()
 {
   NS_LOG_FUNCTION (this);
   Object::DoDispose ();
+}
+
+void
+TokenBucket::NotifyConstructionCompleted ()
+{
+  NS_LOG_FUNCTION (this);
+
+  // Execute the first timeout.
+  Timeout ();
+
+  // Chain up.
+  Object::NotifyConstructionCompleted ();
 }
 
 } // namespace ns3

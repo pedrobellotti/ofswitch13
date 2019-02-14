@@ -27,7 +27,7 @@
 #include <ns3/traced-callback.h>
 #include "ofswitch13-interface.h"
 #include "ofswitch13-queue.h"
-#include "traffic-policing.h"
+#include "token-bucket.h"
 
 namespace ns3 {
 
@@ -101,16 +101,16 @@ public:
   Ptr<OFSwitch13Device> GetSwitchDevice (void) const;
 
   /**
-   * Get the TrafficPolicing pointer from this port.
-   * \return A pointer to the corresponding TrafficPolicing.
+   * Get the TokenBucket pointer associated to this port.
+   * \return A pointer to the corresponding TokenBucket.
    */
-  Ptr<TrafficPolicing> GetRateLimiter (void) const;
+  Ptr<TokenBucket> GetRateLimiter (void) const;
 
   /**
-   * Set the TrafficPolicing pointer for this port.
-   * \param A pointer to the TrafficPolicing.
+   * Set the TokenBucket pointer for this port.
+   * \param limiter A pointer to the TokenBucket.
    */
-  void SetRateLimiter (Ptr<TrafficPolicing> rl);
+  void SetRateLimiter (Ptr<TokenBucket> limiter);
 
   /**
    * Update the port state field based on NetDevice status, and notify the
@@ -170,6 +170,9 @@ private:
   /** Trace source fired when a packet will be sent over this switch port. */
   TracedCallback<Ptr<const Packet> > m_txTrace;
 
+  /** Trace source fired when a packet is dropped. */
+  TracedCallback<Ptr<const Packet> > m_dropTrace;
+
   uint64_t                  m_dpId;         //!< OpenFlow datapath ID.
   uint32_t                  m_portNo;       //!< Port number.
   struct sw_port*           m_swPort;       //!< ofsoftswitch13 port structure.
@@ -177,7 +180,7 @@ private:
   Ptr<OFSwitch13Queue>      m_portQueue;    //!< OpenFlow port Queue.
   ObjectFactory             m_factQueue;    //!< Factory for port queue.
   Ptr<OFSwitch13Device>     m_openflowDev;  //!< OpenFlow device.
-  Ptr<TrafficPolicing>      m_rateLimiter;  //!< Rate limiter policing.
+  Ptr<TokenBucket>          m_rateLimiter;  //!< Rate limiter policing.
 };
 
 } // namespace ns3

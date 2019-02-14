@@ -107,6 +107,10 @@ OFSwitch13Port::GetTypeId (void)
                      "Trace source indicating a packet sent at this port.",
                      MakeTraceSourceAccessor (&OFSwitch13Port::m_txTrace),
                      "ns3::Packet::TracedCallback")
+    .AddTraceSource ("SwitchPortDrop",
+                     "Trace source indicating a packet dropped at this port.",
+                     MakeTraceSourceAccessor (&OFSwitch13Port::m_dropTrace),
+                     "ns3::Packet::TracedCallback")
   ;
   return tid;
 }
@@ -233,16 +237,16 @@ OFSwitch13Port::GetSwitchDevice (void) const
   return m_openflowDev;
 }
 
-Ptr<TrafficPolicing>
+Ptr<TokenBucket>
 OFSwitch13Port::GetRateLimiter (void) const
 {
   return m_rateLimiter;
 }
 
 void
-OFSwitch13Port::SetRateLimiter (Ptr<TrafficPolicing> rl)
+OFSwitch13Port::SetRateLimiter (Ptr<TokenBucket> limiter)
 {
-  m_rateLimiter = rl;
+  m_rateLimiter = limiter;
 }
 
 bool
@@ -350,6 +354,7 @@ OFSwitch13Port::Receive (Ptr<NetDevice> device, Ptr<const Packet> packet,
       if (!m_rateLimiter->removeTokens (pktSize))
         {
           NS_LOG_DEBUG ("Not enough tokens in the bucket to transfer the packet. Discarding");
+          m_dropTrace (packet);
           return false;
         }
     }

@@ -19,8 +19,8 @@
  * Author: João Victor Guimarães <joaoguimaraes@ice.ufjf.br>
  */
 
-#ifndef TRAFFIC_POLICING_H
-#define TRAFFIC_POLICING_H
+#ifndef TOKEN_BUCKET_H
+#define TOKEN_BUCKET_H
 
 #include <ns3/core-module.h>
 #include <ns3/data-rate.h>
@@ -30,9 +30,9 @@ namespace ns3 {
 
 /**
  * \ingroup ofswitch13
- * Traffic policing using token bucket algorithm
+ * Token bucket algorithm
  */
-class TrafficPolicing : public Object
+class TokenBucket : public Object
 {
 public:
   /**
@@ -41,25 +41,15 @@ public:
    */
   static TypeId GetTypeId (void);
 
-  TrafficPolicing ();            //!< Default constructor
-  virtual ~TrafficPolicing ();   //!< Dummy destructor, see DoDispose
-
-  /**
-   * Complete constructor.
-   * \param bucketSize Size of the bucket.
-   */
-  TrafficPolicing (uint32_t bucketSize);
-
-
-  /** \return The queue id */
-  uint32_t GetQueueId (void) const;
+  TokenBucket ();            //!< Default constructor
+  virtual ~TokenBucket ();   //!< Dummy destructor, see DoDispose
 
   /**
    * Removes tokens from the bucket.
    * \param tokens The amount of tokens to be removed
    * \return True if there were enough tokens, False if not
    */
-  bool removeTokens (uint32_t pktSize);
+  bool removeTokens (uint32_t numTokens);
 
   /* TESTE */
   void imprime ();
@@ -68,19 +58,23 @@ protected:
   // Inherited from Object
   virtual void DoDispose (void);
 
+  // Inherited from ObjectBase.
+  virtual void NotifyConstructionCompleted (void);
+
 private:
-  uint32_t m_bucketSize;  //!< Bucket size (burst size)
-  Time m_refillTime;  //!< Time between each token refill
-  Time m_lastRefill;  //!< Time since last refill
-  DataRate m_rate;  //!< Expected throughput
-  uint32_t m_tokens;  //!< Amount of tokens stored
-  uint32_t m_consumedTokens;  //!< Total amount of tokens consumed
   /**
    * Schedules the next refill.
    */
   void Timeout ();
+
+  uint32_t    m_size;            //!< Bucket size (burst size)
+  Time        m_timeout;         //!< Time between each token refill
+  Time        m_lastRefill;      //!< Time since last refill
+  DataRate    m_rate;            //!< Expected throughput
+  uint32_t    m_tokens;          //!< Amount of tokens stored
+
 };
 
 } // namespace ns3
-#endif // TRAFFIC_POLICING_H
+#endif // TOKEN_BUCKET_H
 

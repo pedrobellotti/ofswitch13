@@ -57,6 +57,7 @@ OFSwitch13Device::OFSwitch13Device ()
   m_dpId = ++m_globalDpId;
   NS_LOG_DEBUG ("New datapath ID " << m_dpId);
   OFSwitch13Device::RegisterDatapath (m_dpId, Ptr<OFSwitch13Device> (this));
+  m_rateLimiters.push_back (0);
 }
 
 OFSwitch13Device::~OFSwitch13Device ()
@@ -644,18 +645,21 @@ OFSwitch13Device::GetDevice (uint64_t id)
   NS_ABORT_MSG ("Error when retrieving datapath.");
 }
 
-Ptr<TrafficPolicing>
+uint32_t
 OFSwitch13Device::CreateRateLimiter ()
 {
-  Ptr<TrafficPolicing> rateLimiter = CreateObject<TrafficPolicing> ();
+  NS_LOG_FUNCTION (this);
+  Ptr<TokenBucket> rateLimiter = CreateObject<TokenBucket> ();
   m_rateLimiters.push_back (rateLimiter);
-  return rateLimiter;
+  return m_rateLimiters.size ()-1;
 }
 
 void
-OFSwitch13Device::AssignRateLimiter (uint32_t portNo, Ptr<TrafficPolicing> ratePointer)
+OFSwitch13Device::AssignRateLimiter (uint32_t portNo, uint32_t rateId)
 {
-  m_ports.at (portNo)->SetRateLimiter (ratePointer);
+  NS_LOG_FUNCTION (this << portNo << rateId);
+  NS_ASSERT_MSG (rateId >= 0 && rateId <= m_rateLimiters.size(), "Rate limiter ID is out of range.");
+  GetSwitchPort (portNo)->SetRateLimiter (m_rateLimiters.at (rateId));
 }
 
 /********** Protected methods **********/
@@ -673,6 +677,7 @@ OFSwitch13Device::DoDispose ()
     }
   m_ports.clear ();
   m_bufferPkts.clear ();
+  m_rateLimiters.clear ();
 
   for (auto &ctrl : m_controllers)
     {
@@ -1514,50 +1519,6 @@ OFSwitch13Device::PipelinePacket::HasId (uint64_t id)
         }
     }
   return false;
-}
-
-/* TESTES */
-void
-OFSwitch13Device::PrintFlowTables ()
-{
-  struct flow_table *table;
-  struct flow_entry *entry;
-  size_t level = 0;
-  size_t entry_count = 0;
-  for (size_t i = 0; i < GetNPipelineTables (); i++)
-    {
-      table = m_datapath->pipeline->tables[i];
-      std::cout << "Datapath ID: " << m_dpId << std::endl;
-      LIST_FOR_EACH (entry, struct flow_entry, match_node, &table->match_entries)
-      {
-        entry_count++;
-        std::cout << "Entry #" << entry_count << std::endl;
-        std::string str = ofl_structs_flow_stats_to_string (entry->stats, 0);
-        for (std::string::size_type j = 0; j < str.size (); j++)
-          {
-            if (str[j] == '{' || str[j] == '[')
-              {
-                level++;
-                //str[j] = ' ';
-              }
-            else if (str[j] == '}' || str[j] == ']')
-              {
-                level--;
-                //str[j] = ' ';
-              }
-            if (str[j] == ',' && level == 1)
-              {
-                std::cout << std::endl;
-              }
-            else if (str[j] != '"')
-              {
-                std::cout << str[j];
-              }
-          }
-        std::cout << std::endl << std::endl;
-      }
-      entry_count = 0;
-    }
 }
 
 } // namespace ns3
