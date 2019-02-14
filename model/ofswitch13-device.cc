@@ -651,14 +651,14 @@ OFSwitch13Device::CreateRateLimiter ()
   NS_LOG_FUNCTION (this);
   Ptr<TokenBucket> rateLimiter = CreateObject<TokenBucket> ();
   m_rateLimiters.push_back (rateLimiter);
-  return m_rateLimiters.size ()-1;
+  return m_rateLimiters.size () - 1;
 }
 
 void
 OFSwitch13Device::AssignRateLimiter (uint32_t portNo, uint32_t rateId)
 {
   NS_LOG_FUNCTION (this << portNo << rateId);
-  NS_ASSERT_MSG (rateId >= 0 && rateId <= m_rateLimiters.size(), "Rate limiter ID is out of range.");
+  NS_ASSERT_MSG (rateId >= 0 && rateId <= m_rateLimiters.size (), "Rate limiter ID is out of range.");
   GetSwitchPort (portNo)->SetRateLimiter (m_rateLimiters.at (rateId));
 }
 
