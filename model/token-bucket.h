@@ -49,7 +49,7 @@ public:
    * \param tokens The amount of tokens to be removed
    * \return True if there were enough tokens, False if not
    */
-  bool removeTokens (uint32_t numTokens);
+  bool removeTokens (uint64_t numTokens);
 
   /* TESTE */
   void imprime ();
@@ -67,11 +67,11 @@ private:
    */
   void Timeout ();
 
-  uint32_t    m_size;            //!< Bucket size (burst size)
+  uint64_t    m_size;            //!< Bucket size (burst size)
   Time        m_timeout;         //!< Time between each token refill
   Time        m_lastRefill;      //!< Time since last refill
   DataRate    m_rate;            //!< Expected throughput
-  uint32_t    m_tokens;          //!< Amount of tokens stored
+  uint64_t    m_tokens;          //!< Amount of tokens stored
 
 };
 
