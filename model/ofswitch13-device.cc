@@ -34,6 +34,15 @@ namespace ns3 {
 NS_LOG_COMPONENT_DEFINE ("OFSwitch13Device");
 NS_OBJECT_ENSURE_REGISTERED (OFSwitch13Device);
 
+static ObjectFactory
+GetDefaultBucketFactory ()
+{
+  // Setting default internal rate limiter configuration.
+  ObjectFactory bucketFactory;
+  bucketFactory.SetTypeId ("ns3::TokenBucket");
+  return bucketFactory;
+}
+
 // Initializing OFSwitch13Device static members.
 uint64_t OFSwitch13Device::m_globalDpId = 0;
 uint64_t OFSwitch13Device::m_globalPktId = 0;
@@ -122,6 +131,12 @@ OFSwitch13Device::GetTypeId (void)
                    TimeValue (MilliSeconds (100)),
                    MakeTimeAccessor (&OFSwitch13Device::m_timeout),
                    MakeTimeChecker (MilliSeconds (1), MilliSeconds (1000)))
+    .AddAttribute ("QueueFactory",
+                   "The object factory for the Rate Limiter algorithm.",
+                   TypeId::ATTR_GET | TypeId::ATTR_CONSTRUCT,
+                   ObjectFactoryValue (GetDefaultBucketFactory ()),
+                   MakeObjectFactoryAccessor (&OFSwitch13Device::m_factBuckets),
+                   MakeObjectFactoryChecker ())
 
     .AddTraceSource ("BufferExpire",
                      "Trace source indicating an expired packet in buffer.",
@@ -649,8 +664,7 @@ uint32_t
 OFSwitch13Device::CreateRateLimiter ()
 {
   NS_LOG_FUNCTION (this);
-  Ptr<TokenBucket> rateLimiter = CreateObject<TokenBucket> ();
-  m_rateLimiters.push_back (rateLimiter);
+  m_rateLimiters.push_back (m_factBuckets.Create<TokenBucket> ());
   return m_rateLimiters.size () - 1;
 }
 
@@ -660,6 +674,12 @@ OFSwitch13Device::AssignRateLimiter (uint32_t portNo, uint32_t rateId)
   NS_LOG_FUNCTION (this << portNo << rateId);
   NS_ASSERT_MSG (rateId >= 0 && rateId <= m_rateLimiters.size (), "Rate limiter ID is out of range.");
   GetSwitchPort (portNo)->SetRateLimiter (m_rateLimiters.at (rateId));
+}
+
+void 
+OFSwitch13Device::SetRateLimiterAttribute (std::string name, const AttributeValue &value)
+{
+  m_factBuckets.Set (name, value);
 }
 
 /********** Protected methods **********/

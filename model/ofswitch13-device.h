@@ -368,6 +368,13 @@ public:
    */
   void AssignRateLimiter (uint32_t portNo, uint32_t rateId);
 
+  /**
+   * Set an attribute of the rate limiter factory.
+   * \param name Attribute name
+   * \param value Attribute value
+   */
+  void SetRateLimiterAttribute (std::string name, const AttributeValue &value);
+
 protected:
   // Inherited from Object
   virtual void DoDispose (void);
@@ -666,6 +673,8 @@ private:
   uint64_t          m_cPacketIn;    //!< Pipeline packet in counter.
   uint64_t          m_cPacketOut;   //!< Pipeline packet out counter.
   PolicingList_t    m_rateLimiters; //!< Token Bucket pointers.
+  ObjectFactory     m_factBuckets;  //!< Factory for token buckets.
+
 
   static uint64_t   m_globalDpId;   //!< Global counter for datapath IDs.
   static uint64_t   m_globalPktId;  //!< Global counter for packets IDs.
