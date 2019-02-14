@@ -49,7 +49,7 @@ TokenBucket::GetTypeId (void)
                    "The size of the bucket, in bits.",
                    UintegerValue (0),
                    MakeUintegerAccessor (&TokenBucket::m_size),
-                   MakeUintegerChecker<uint32_t> ())
+                   MakeUintegerChecker<uint64_t> ())
     .AddAttribute ("Rate",
                    "The average long-run token rate.",
                    DataRateValue (DataRate ("100Gb/s")),
@@ -64,14 +64,14 @@ TokenBucket::Timeout ()
 {
   NS_LOG_FUNCTION (this);
   Time elapsed = Simulator::Now () - m_lastRefill;
-  uint32_t addTokens = (m_rate.GetBitRate () * elapsed.GetMilliSeconds ()) / 1000;
+  uint64_t addTokens = (m_rate.GetBitRate () * elapsed.GetMilliSeconds ()) / 1000;
   m_tokens = std::min (m_tokens + addTokens, m_size);
   m_lastRefill = Simulator::Now ();
   Simulator::Schedule (m_timeout, &TokenBucket::Timeout, this);
 }
 
 bool
-TokenBucket::removeTokens (uint32_t numTokens)
+TokenBucket::removeTokens (uint64_t numTokens)
 {
   NS_LOG_FUNCTION (this << numTokens);
   if (m_tokens >= numTokens)

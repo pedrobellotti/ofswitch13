@@ -91,6 +91,7 @@ def build(bld):
     module = bld.create_ns3_module('ofswitch13', ['core', 'network', 'internet', 'csma', 'point-to-point', 'virtual-net-device', 'applications'])
     module.source = [
         'model/ofswitch13-controller.cc',
+        'model/token-bucket.cc',
         'model/ofswitch13-device.cc',
         'model/ofswitch13-interface.cc',
         'model/ofswitch13-learning-controller.cc',
@@ -100,7 +101,6 @@ def build(bld):
         'model/ofswitch13-socket-handler.cc',
         'model/queue-tag.cc',
         'model/tunnel-id-tag.cc',
-        'model/token-bucket.cc',
         'helper/ofswitch13-device-container.cc',
         'helper/ofswitch13-external-helper.cc',
         'helper/ofswitch13-helper.cc',
@@ -113,6 +113,7 @@ def build(bld):
     headers.module = 'ofswitch13'
     headers.source = [
         'model/ofswitch13-controller.h',
+        'model/token-bucket.h',
         'model/ofswitch13-device.h',
         'model/ofswitch13-interface.h',
         'model/ofswitch13-learning-controller.h',
@@ -122,7 +123,6 @@ def build(bld):
         'model/ofswitch13-socket-handler.h',
         'model/queue-tag.h',
         'model/tunnel-id-tag.h',
-        'model/token-bucket.h',
         'helper/ofswitch13-device-container.h',
         'helper/ofswitch13-external-helper.h',
         'helper/ofswitch13-helper.h',
