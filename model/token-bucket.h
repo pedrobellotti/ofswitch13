@@ -51,9 +51,6 @@ public:
    */
   bool removeTokens (uint64_t numTokens);
 
-  /* TESTE */
-  void imprime ();
-
 protected:
   // Inherited from Object
   virtual void DoDispose (void);

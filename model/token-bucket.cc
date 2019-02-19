@@ -85,18 +85,6 @@ TokenBucket::removeTokens (uint64_t numTokens)
     }
 }
 
-/*Função para testes - será removida*/
-void
-TokenBucket::imprime ()
-{
-  NS_LOG_FUNCTION (this);
-  std::cout << "m_size: " << m_size << std::endl;
-  std::cout << "m_timeout: " << m_timeout << std::endl;
-  std::cout << "m_lastRefill: " << m_lastRefill << std::endl;
-  std::cout << "m_rate: " << m_rate << std::endl;
-  std::cout << "m_tokens: " << m_tokens << std::endl;
-}
-
 TokenBucket::~TokenBucket ()
 {
   NS_LOG_FUNCTION (this);
