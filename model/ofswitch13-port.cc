@@ -350,10 +350,10 @@ OFSwitch13Port::Receive (Ptr<NetDevice> device, Ptr<const Packet> packet,
   // Check the rate limiter bucket
   if (m_rateLimiter != 0)
     {
-      uint64_t pktSize = packet->GetSize () * 8;
-      if (!m_rateLimiter->removeTokens (pktSize))
+      uint64_t pktSizeBits = packet->GetSize () * 8;
+      if (!m_rateLimiter->removeTokens (pktSizeBits))
         {
-          NS_LOG_DEBUG ("Not enough tokens in the bucket to transfer the packet. Discarding");
+          NS_LOG_DEBUG ("Rate limiter discarding packet " << packet);
           m_dropTrace (packet);
           return false;
         }
