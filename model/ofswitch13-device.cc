@@ -676,6 +676,10 @@ OFSwitch13Device::DoDispose ()
   m_ports.clear ();
   m_bufferPkts.clear ();
   m_rateLimiters.clear ();
+  while (!m_ctrlQueue.empty ())
+  {
+    m_ctrlQueue.pop ();
+  }
 
   for (auto &ctrl : m_controllers)
     {
@@ -1016,6 +1020,12 @@ OFSwitch13Device::ReceiveFromController (Ptr<Packet> packet, Address from)
 {
   NS_LOG_FUNCTION (this << packet << from);
 
+  if (!m_ctrlQueue.empty ())
+  {
+    m_ctrlQueue.push (packet);
+    packet = m_ctrlQueue.front ();
+  }
+
   struct ofl_msg_header *msg;
   ofl_err error;
 
@@ -1076,44 +1086,44 @@ OFSwitch13Device::ReceiveFromController (Ptr<Packet> packet, Address from)
 
   // Increase internal counters based on message type.
   uint32_t tokensToRemove = packet->GetSize () * 8;
-  //m_cpuTokens += 1000;
+  m_cpuTokens += 1000;
   switch (msg->type)
     {
     case (OFPT_PACKET_OUT):
       {
         m_cPacketOut++;
+        tokensToRemove *= 1;
         break;
       }
     case (OFPT_FLOW_MOD):
       {
         m_cFlowMod++;
-        struct ofl_msg_flow_mod* cmd = (struct ofl_msg_flow_mod*) msg;
-        enum ofp_flow_mod_command* cmdType = &cmd->command;
-        if(*cmdType == 0) // Add
+        struct ofl_msg_flow_mod *msgfm= (struct ofl_msg_flow_mod *)msg;
+        if(msgfm->command == OFPFC_ADD)
         {
           tokensToRemove *= 2;
         }
-        else if (*cmdType == 1 || *cmdType == 2) // Modify
+        else if (msgfm->command == OFPFC_MODIFY)
         {
           tokensToRemove *= 1.2;
         }
-        else if (*cmdType == 3 || *cmdType == 4) // Delete
+        else if (msgfm->command == OFPFC_DELETE)
         {
           tokensToRemove *= 3;
         }
-        //std::cout << *cmdType << std::endl;
-        //free(cmd);
-        //free(cmdType);
+        //free(msgfm);
         break;
       }
     case (OFPT_METER_MOD):
       {
         m_cMeterMod++;
+        tokensToRemove *= 1.1;
         break;
       }
     case (OFPT_GROUP_MOD):
       {
         m_cGroupMod++;
+        tokensToRemove *= 1.1;
         break;
       }
     default:
@@ -1123,17 +1133,17 @@ OFSwitch13Device::ReceiveFromController (Ptr<Packet> packet, Address from)
   // Check the packet for conformance to CPU processing capacity.
   if (m_cpuTokens < tokensToRemove)
     {
-      // Packet will be dropped. Increase counter and fire drop trace source.
-      NS_LOG_DEBUG ("Drop controller packet due to CPU overloaded capacity.");
-      m_loadDropTrace (packet);
+      // Queueing packet
+      if (m_ctrlQueue.empty ())
+      {
+        m_ctrlQueue.push (packet);
+      }
       return;
     }
   // Consume tokens.
-  std::cout << "tem " << m_cpuTokens << std::endl;
-  std::cout << "removendo " << tokensToRemove << std::endl;
   m_cpuTokens -= tokensToRemove;
   m_cpuConsumed += tokensToRemove;
-
+  m_ctrlQueue.pop ();
   // Print message content.
   char *msgStr = ofl_msg_to_string (msg, m_datapath->exp);
   Ipv4Address ctrlIp = InetSocketAddress::ConvertFrom (from).GetIpv4 ();

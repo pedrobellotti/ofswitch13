@@ -600,6 +600,9 @@ private:
   /** Structure to save token bucket pointers. */
   typedef std::vector<Ptr<TokenBucket> > PolicingList_t;
 
+  /** Structure to save control packets from controller. */
+  typedef std::queue<Ptr<Packet> > CtrlQueue_t;
+
   /** Structure to map datapath id to OpenFlow device. */
   typedef std::map<uint64_t, Ptr<OFSwitch13Device> > DpIdDevMap_t;
 
@@ -666,6 +669,7 @@ private:
   uint64_t          m_cPacketIn;    //!< Pipeline packet in counter.
   uint64_t          m_cPacketOut;   //!< Pipeline packet out counter.
   PolicingList_t    m_rateLimiters; //!< Token Bucket pointers.
+  CtrlQueue_t       m_ctrlQueue;    //!< Controller packet queue. 
 
   static uint64_t   m_globalDpId;   //!< Global counter for datapath IDs.
   static uint64_t   m_globalPktId;  //!< Global counter for packets IDs.
