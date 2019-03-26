@@ -27,11 +27,16 @@
 #include <ns3/string.h>
 #include <ns3/tcp-header.h>
 #include <ns3/traced-value.h>
+#include <ns3/queue.h>
 #include "ofswitch13-interface.h"
 #include "ofswitch13-socket-handler.h"
 #include "token-bucket.h"
 
 namespace ns3 {
+
+// The following explicit template instantiation declaration prevents modules
+// including this header file from implicitly instantiating Queue<Packet>.
+extern template class Queue<Packet>;
 
 class OFSwitch13Port;
 
@@ -461,6 +466,15 @@ private:
   void ReceiveFromController (Ptr<Packet> packet, Address from);
 
   /**
+   * Process an OpenFlow packet from controller.
+   * \param buffer The message buffer that originated the error.
+   * \param senderCtrl The origin of a received OpenFlow message.
+   */
+  void ProcessControlPacket (struct ofl_msg_header *msg, 
+                             struct ofpbuf *buffer,
+                             struct sender senderCtrl);
+
+  /**
    * Create an OpenFlow error message and send it back to the sender
    * controller. This function is used only when an error occurred while
    * processing an OpenFlow message received from the controller.
@@ -600,9 +614,6 @@ private:
   /** Structure to save token bucket pointers. */
   typedef std::vector<Ptr<TokenBucket> > PolicingList_t;
 
-  /** Structure to save control packets from controller. */
-  typedef std::queue<Ptr<Packet> > CtrlQueue_t;
-
   /** Structure to map datapath id to OpenFlow device. */
   typedef std::map<uint64_t, Ptr<OFSwitch13Device> > DpIdDevMap_t;
 
@@ -645,31 +656,31 @@ private:
   /** Average CPU processing load. */
   TracedValue<DataRate> m_cpuLoad;
 
-  uint64_t          m_dpId;         //!< This datapath id.
-  Time              m_timeout;      //!< Datapath timeout interval.
-  Time              m_lastTimeout;  //!< Datapath last timeout.
-  Time              m_tcamDelay;    //!< Flow Table TCAM lookup delay.
-  std::string       m_libLog;       //!< The ofsoftswitch13 library log level.
-  struct datapath*  m_datapath;     //!< ofsoftswitch13 datapath structure.
-  PortList_t        m_ports;        //!< List of switch ports.
-  CtrlList_t        m_controllers;  //!< Collection of active controllers.
-  uint32_t          m_flowTabSize;  //!< Flow table maximum entries.
-  uint32_t          m_groupTabSize; //!< Group table maximum entries.
-  uint32_t          m_meterTabSize; //!< Meter table maximum entries.
-  uint32_t          m_numPipeTabs;  //!< Number of pipeline flow tables.
-  IdPacketMap_t     m_bufferPkts;   //!< Packets saved in switch buffer.
-  uint32_t          m_bufferSize;   //!< Buffer size in terms of packets.
-  PipelinePacket    m_pipePkt;      //!< Packet under switch pipeline.
-  DataRate          m_cpuCapacity;  //!< CPU processing capacity.
-  uint64_t          m_cpuConsumed;  //!< CPU processing tokens consumed.
-  uint64_t          m_cpuTokens;    //!< CPU processing tokens available.
-  uint64_t          m_cFlowMod;     //!< Pipeline flow mod counter.
-  uint64_t          m_cGroupMod;    //!< Pipeline group mod counter.
-  uint64_t          m_cMeterMod;    //!< Pipeline meter mod counter.
-  uint64_t          m_cPacketIn;    //!< Pipeline packet in counter.
-  uint64_t          m_cPacketOut;   //!< Pipeline packet out counter.
-  PolicingList_t    m_rateLimiters; //!< Token Bucket pointers.
-  CtrlQueue_t       m_ctrlQueue;    //!< Controller packet queue. 
+  uint64_t              m_dpId;         //!< This datapath id.
+  Time                  m_timeout;      //!< Datapath timeout interval.
+  Time                  m_lastTimeout;  //!< Datapath last timeout.
+  Time                  m_tcamDelay;    //!< Flow Table TCAM lookup delay.
+  std::string           m_libLog;       //!< The ofsoftswitch13 library log level.
+  struct datapath*      m_datapath;     //!< ofsoftswitch13 datapath structure.
+  PortList_t            m_ports;        //!< List of switch ports.
+  CtrlList_t            m_controllers;  //!< Collection of active controllers.
+  uint32_t              m_flowTabSize;  //!< Flow table maximum entries.
+  uint32_t              m_groupTabSize; //!< Group table maximum entries.
+  uint32_t              m_meterTabSize; //!< Meter table maximum entries.
+  uint32_t              m_numPipeTabs;  //!< Number of pipeline flow tables.
+  IdPacketMap_t         m_bufferPkts;   //!< Packets saved in switch buffer.
+  uint32_t              m_bufferSize;   //!< Buffer size in terms of packets.
+  PipelinePacket        m_pipePkt;      //!< Packet under switch pipeline.
+  DataRate              m_cpuCapacity;  //!< CPU processing capacity.
+  uint64_t              m_cpuConsumed;  //!< CPU processing tokens consumed.
+  uint64_t              m_cpuTokens;    //!< CPU processing tokens available.
+  uint64_t              m_cFlowMod;     //!< Pipeline flow mod counter.
+  uint64_t              m_cGroupMod;    //!< Pipeline group mod counter.
+  uint64_t              m_cMeterMod;    //!< Pipeline meter mod counter.
+  uint64_t              m_cPacketIn;    //!< Pipeline packet in counter.
+  uint64_t              m_cPacketOut;   //!< Pipeline packet out counter.
+  PolicingList_t        m_rateLimiters; //!< Token Bucket pointers.
+  Ptr<Queue<Packet> >   m_ctrlQueue;    //!< Controller packet queue. 
 
   static uint64_t   m_globalDpId;   //!< Global counter for datapath IDs.
   static uint64_t   m_globalPktId;  //!< Global counter for packets IDs.

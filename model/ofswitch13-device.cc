@@ -676,10 +676,7 @@ OFSwitch13Device::DoDispose ()
   m_ports.clear ();
   m_bufferPkts.clear ();
   m_rateLimiters.clear ();
-  while (!m_ctrlQueue.empty ())
-  {
-    m_ctrlQueue.pop ();
-  }
+  m_ctrlQueue = 0;
 
   for (auto &ctrl : m_controllers)
     {
@@ -1020,10 +1017,23 @@ OFSwitch13Device::ReceiveFromController (Ptr<Packet> packet, Address from)
 {
   NS_LOG_FUNCTION (this << packet << from);
 
-  if (!m_ctrlQueue.empty ())
+  m_ctrlQueue->Enqueue (packet); //Erro nessa linha
+  uint32_t tokensToRemove = 0;
+  Ptr<const Packet> pkt;
+  while (!m_ctrlQueue->IsEmpty ())
   {
-    m_ctrlQueue.push (packet);
-    packet = m_ctrlQueue.front ();
+    pkt = m_ctrlQueue->Peek ();
+    tokensToRemove = pkt->GetSize () * 16;
+    if (m_cpuTokens > tokensToRemove)
+    {
+      m_ctrlQueue->Dequeue ();
+      break;
+    }
+    else
+    {
+      m_ctrlQueue->Enqueue (packet);
+      return;
+    }
   }
 
   struct ofl_msg_header *msg;
@@ -1037,7 +1047,7 @@ OFSwitch13Device::ReceiveFromController (Ptr<Packet> packet, Address from)
   senderCtrl.conn_id = 0; // TODO No support for auxiliary connections
 
   // Get the OpenFlow buffer and unpack the message.
-  struct ofpbuf *buffer = ofs::BufferFromPacket (packet, packet->GetSize ());
+  struct ofpbuf *buffer = ofs::BufferFromPacket (pkt, pkt->GetSize ());
   error = ofl_msg_unpack ((uint8_t*)buffer->data, buffer->size, &msg,
                           &senderCtrl.xid, m_datapath->exp);
 
@@ -1084,74 +1094,73 @@ OFSwitch13Device::ReceiveFromController (Ptr<Packet> packet, Address from)
         }
     }
 
-  // Increase internal counters based on message type.
-  uint32_t tokensToRemove = packet->GetSize () * 8;
-  m_cpuTokens += 1000;
+
+  //m_cpuTokens += 1000;
   switch (msg->type)
     {
     case (OFPT_PACKET_OUT):
       {
         m_cPacketOut++;
-        tokensToRemove *= 1;
+        //tokensToRemove *= 2;
         break;
       }
     case (OFPT_FLOW_MOD):
       {
         m_cFlowMod++;
-        struct ofl_msg_flow_mod *msgfm= (struct ofl_msg_flow_mod *)msg;
+        /*struct ofl_msg_flow_mod *msgfm= (struct ofl_msg_flow_mod *)msg;
         if(msgfm->command == OFPFC_ADD)
         {
           tokensToRemove *= 2;
         }
         else if (msgfm->command == OFPFC_MODIFY)
         {
-          tokensToRemove *= 1.2;
+          tokensToRemove *= 2;
         }
         else if (msgfm->command == OFPFC_DELETE)
         {
-          tokensToRemove *= 3;
-        }
+          tokensToRemove *= 2;
+        }*/
         //free(msgfm);
         break;
       }
     case (OFPT_METER_MOD):
       {
         m_cMeterMod++;
-        tokensToRemove *= 1.1;
+        //tokensToRemove *= 2;
         break;
       }
     case (OFPT_GROUP_MOD):
       {
         m_cGroupMod++;
-        tokensToRemove *= 1.1;
+        //tokensToRemove *= 2;
         break;
       }
     default:
       {
       }
     }
+  
   // Check the packet for conformance to CPU processing capacity.
-  if (m_cpuTokens < tokensToRemove)
-    {
-      // Queueing packet
-      if (m_ctrlQueue.empty ())
-      {
-        m_ctrlQueue.push (packet);
-      }
-      return;
-    }
   // Consume tokens.
   m_cpuTokens -= tokensToRemove;
   m_cpuConsumed += tokensToRemove;
-  m_ctrlQueue.pop ();
   // Print message content.
   char *msgStr = ofl_msg_to_string (msg, m_datapath->exp);
   Ipv4Address ctrlIp = InetSocketAddress::ConvertFrom (from).GetIpv4 ();
   NS_LOG_DEBUG ("RX from controller " << ctrlIp << ": " << msgStr);
   free (msgStr);
+  ProcessControlPacket (msg, buffer, senderCtrl);
+}
+
+void
+OFSwitch13Device::ProcessControlPacket (struct ofl_msg_header *msg,
+                                        struct ofpbuf *buffer,
+                                        struct sender senderCtrl)
+{
+  NS_LOG_FUNCTION (this << msg);
 
   // Send the message to handler.
-  error = handle_control_msg (m_datapath, msg, &senderCtrl);
+  ofl_err error = handle_control_msg (m_datapath, msg, &senderCtrl);
   if (error)
     {
       // It is assumed that if a handler returns with error, it did not use any
