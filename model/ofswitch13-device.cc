@@ -58,9 +58,8 @@ OFSwitch13Device::OFSwitch13Device ()
   NS_LOG_DEBUG ("New datapath ID " << m_dpId);
   OFSwitch13Device::RegisterDatapath (m_dpId, Ptr<OFSwitch13Device> (this));
   m_rateLimiters.push_back (0);
-
-  m_ctrlQueue = CreateObject (); 
-
+  //m_ctrlQueue = CreateObject <Queue<Packet> >(); //Classe abstrata nao pode instanciar
+  m_ctrlQueue = CreateObject <DropTailQueue<Packet> >();
 }
 
 OFSwitch13Device::~OFSwitch13Device ()
@@ -991,7 +990,6 @@ OFSwitch13Device::SendToPipeline (Ptr<Packet> packet, uint32_t portNo,
   struct ofpbuf *buffer = ofs::BufferFromPacket (packet, bodyRoom, headRoom);
   struct packet *pkt = packet_create (m_datapath, portNo, buffer,
                                       tunnelId, false);
-
   // Save the ns-3 packet into pipeline structure. Note that we are using a
   // private packet uid to avoid conflicts with ns3::Packet uid.
   pkt->ns3_uid = OFSwitch13Device::GetNewPacketId ();
@@ -1018,36 +1016,42 @@ OFSwitch13Device::SendToController (Ptr<Packet> packet,
 void
 OFSwitch13Device::ReceiveFromController (Ptr<Packet> packet, Address from)
 {
-  //INSERE PACKET E FROM NA FILA E DEPOIS CHAMA CheckControlQueue()
   NS_LOG_FUNCTION (this << packet << from);
-
   m_ctrlQueue->Enqueue (packet); //tem que colocar na fila o par <packet, from>
-
-  CheckControlQueue ();
+  CheckControlQueue (from);
 }
 
 void
-OFSwitch13Device::CheckControlQueue ()
+OFSwitch13Device::CheckControlQueue (Address from) //Nao pode precisar desse parametro
 {
-  /*VE SE TEM TOKENS, SE TEM REMOVE DA FILA E CHAMA ProcessControlPacket() 
-  SE NÃO TEM SCHEDULE DA CheckControlQueue()*/
   NS_LOG_FUNCTION (this);
-  
-  Ptr<Packet> pkt = m_ctrlQueue->Peek ();
-  uint32_t tokensToRemove = pkt->GetSize () * 16;
-  if (m_cpuTokens > tokensToRemove)
-  {
-    m_ctrlQueue->Dequeue ();
-    //ProcessControlPacket (pkt,from,tokensToRemove);
-  }
-  Simulator::Schedule (MilliSeconds (100), &OFSwitch13Device::CheckControlQueue (),this);
+  Ptr<const Packet> pkt = 0;
+  uint64_t tokensToRemove = 0;
+  // If the queue is not empty, process the first packet if there are enough tokens
+  if (!m_ctrlQueue->IsEmpty ())
+    {
+      pkt = m_ctrlQueue->Peek ();
+      //tokensToRemove = pkt->GetSize () * 160000 + 200000000000;
+      tokensToRemove = pkt->GetSize () * 16;
+      // Check the packet for conformance to CPU processing capacity.
+      if (m_cpuTokens > tokensToRemove)
+        {
+          // Consume tokens.
+          m_cpuTokens -= tokensToRemove;
+          m_cpuConsumed += tokensToRemove;
+          // Remove from queue
+          m_ctrlQueue->Dequeue ();
+          // Process the packet
+          ProcessControlPacket (pkt,from); //Trocar o from (está usando o mesmo sempre)
+        }
+    }
+  Simulator::Schedule (MilliSeconds (100), &OFSwitch13Device::CheckControlQueue, this, from);
 }
 
 void
-OFSwitch13Device::ProcessControlPacket (Ptr<Packet> packet, Address from, uint32_t tokensToRemove)
+OFSwitch13Device::ProcessControlPacket (Ptr<const Packet> packet, Address from)
 {
   NS_LOG_FUNCTION (this << packet << from);
-
   struct ofl_msg_header *msg;
   ofl_err error;
 
@@ -1059,7 +1063,7 @@ OFSwitch13Device::ProcessControlPacket (Ptr<Packet> packet, Address from, uint32
   senderCtrl.conn_id = 0; // TODO No support for auxiliary connections
 
   // Get the OpenFlow buffer and unpack the message.
-  struct ofpbuf *buffer = ofs::BufferFromPacket (pkt, pkt->GetSize ());
+  struct ofpbuf *buffer = ofs::BufferFromPacket (packet, packet->GetSize ());
   error = ofl_msg_unpack ((uint8_t*)buffer->data, buffer->size, &msg,
                           &senderCtrl.xid, m_datapath->exp);
 
@@ -1106,63 +1110,40 @@ OFSwitch13Device::ProcessControlPacket (Ptr<Packet> packet, Address from, uint32
         }
     }
 
-
-  //m_cpuTokens += 1000;
   switch (msg->type)
     {
     case (OFPT_PACKET_OUT):
       {
         m_cPacketOut++;
-        //tokensToRemove *= 2;
         break;
       }
     case (OFPT_FLOW_MOD):
       {
         m_cFlowMod++;
-        /*struct ofl_msg_flow_mod *msgfm= (struct ofl_msg_flow_mod *)msg;
-        if(msgfm->command == OFPFC_ADD)
-        {
-          tokensToRemove *= 2;
-        }
-        else if (msgfm->command == OFPFC_MODIFY)
-        {
-          tokensToRemove *= 2;
-        }
-        else if (msgfm->command == OFPFC_DELETE)
-        {
-          tokensToRemove *= 2;
-        }*/
-        //free(msgfm);
         break;
       }
     case (OFPT_METER_MOD):
       {
         m_cMeterMod++;
-        //tokensToRemove *= 2;
         break;
       }
     case (OFPT_GROUP_MOD):
       {
         m_cGroupMod++;
-        //tokensToRemove *= 2;
         break;
       }
     default:
       {
       }
     }
-  
-  // Check the packet for conformance to CPU processing capacity.
-  // Consume tokens.
-  m_cpuTokens -= tokensToRemove;
-  m_cpuConsumed += tokensToRemove;
+
   // Print message content.
   char *msgStr = ofl_msg_to_string (msg, m_datapath->exp);
   Ipv4Address ctrlIp = InetSocketAddress::ConvertFrom (from).GetIpv4 ();
   NS_LOG_DEBUG ("RX from controller " << ctrlIp << ": " << msgStr);
   free (msgStr);
   // Send the message to handler.
-  ofl_err error = handle_control_msg (m_datapath, msg, &senderCtrl);
+  error = handle_control_msg (m_datapath, msg, &senderCtrl);
   if (error)
     {
       // It is assumed that if a handler returns with error, it did not use any

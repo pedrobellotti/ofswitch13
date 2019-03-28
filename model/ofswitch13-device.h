@@ -28,6 +28,7 @@
 #include <ns3/tcp-header.h>
 #include <ns3/traced-value.h>
 #include <ns3/queue.h>
+#include <ns3/drop-tail-queue.h>
 #include "ofswitch13-interface.h"
 #include "ofswitch13-socket-handler.h"
 #include "token-bucket.h"
@@ -35,8 +36,8 @@
 namespace ns3 {
 
 // The following explicit template instantiation declaration prevents modules
-// including this header file from implicitly instantiating Queue<Packet>.
-extern template class Queue<Packet>;
+// including this header file from implicitly instantiating DropTailQueue<Packet>.
+extern template class DropTailQueue<Packet>;
 
 class OFSwitch13Port;
 
@@ -458,7 +459,7 @@ private:
                         Ptr<OFSwitch13Device::RemoteController> remoteCtrl);
 
   /**
-   * Receive an OpenFlow packet from controller.
+   * Receive an OpenFlow packet from controller and adds it in the queue.
    * \see remote_rconn_run () at udatapath/datapath.c.
    * \param packet The packet with the OpenFlow message.
    * \param from The packet sender address.
@@ -466,13 +467,16 @@ private:
   void ReceiveFromController (Ptr<Packet> packet, Address from);
 
   /**
-   * Process an OpenFlow packet from controller.
-   * \param buffer The message buffer that originated the error.
-   * \param senderCtrl The origin of a received OpenFlow message.
+   * Check the control packet queue and remove tokens.
    */
-  void ProcessControlPacket (struct ofl_msg_header *msg, 
-                             struct ofpbuf *buffer,
-                             struct sender senderCtrl);
+  void CheckControlQueue (Address from);
+
+  /**
+   * Process an OpenFlow packet from controller.
+   * \param packet The packet with the OpenFlow message.
+   * \param from The packet sender address.
+   */
+  void ProcessControlPacket (Ptr<const Packet> packet, Address from);
 
   /**
    * Create an OpenFlow error message and send it back to the sender
@@ -680,7 +684,7 @@ private:
   uint64_t              m_cPacketIn;    //!< Pipeline packet in counter.
   uint64_t              m_cPacketOut;   //!< Pipeline packet out counter.
   PolicingList_t        m_rateLimiters; //!< Token Bucket pointers.
-  Ptr<Queue<Packet> >   m_ctrlQueue;    //!< Controller packet queue. 
+  Ptr<DropTailQueue<Packet> >   m_ctrlQueue;    //!< Controller packet queue.
 
   static uint64_t   m_globalDpId;   //!< Global counter for datapath IDs.
   static uint64_t   m_globalPktId;  //!< Global counter for packets IDs.
