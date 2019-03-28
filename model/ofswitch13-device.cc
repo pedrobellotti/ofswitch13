@@ -58,6 +58,9 @@ OFSwitch13Device::OFSwitch13Device ()
   NS_LOG_DEBUG ("New datapath ID " << m_dpId);
   OFSwitch13Device::RegisterDatapath (m_dpId, Ptr<OFSwitch13Device> (this));
   m_rateLimiters.push_back (0);
+
+  m_ctrlQueue = CreateObject (); 
+
 }
 
 OFSwitch13Device::~OFSwitch13Device ()
@@ -1015,26 +1018,35 @@ OFSwitch13Device::SendToController (Ptr<Packet> packet,
 void
 OFSwitch13Device::ReceiveFromController (Ptr<Packet> packet, Address from)
 {
+  //INSERE PACKET E FROM NA FILA E DEPOIS CHAMA CheckControlQueue()
   NS_LOG_FUNCTION (this << packet << from);
 
-  m_ctrlQueue->Enqueue (packet); //Erro nessa linha
-  uint32_t tokensToRemove = 0;
-  Ptr<const Packet> pkt;
-  while (!m_ctrlQueue->IsEmpty ())
+  m_ctrlQueue->Enqueue (packet); //tem que colocar na fila o par <packet, from>
+
+  CheckControlQueue ();
+}
+
+void
+OFSwitch13Device::CheckControlQueue ()
+{
+  /*VE SE TEM TOKENS, SE TEM REMOVE DA FILA E CHAMA ProcessControlPacket() 
+  SE NÃO TEM SCHEDULE DA CheckControlQueue()*/
+  NS_LOG_FUNCTION (this);
+  
+  Ptr<Packet> pkt = m_ctrlQueue->Peek ();
+  uint32_t tokensToRemove = pkt->GetSize () * 16;
+  if (m_cpuTokens > tokensToRemove)
   {
-    pkt = m_ctrlQueue->Peek ();
-    tokensToRemove = pkt->GetSize () * 16;
-    if (m_cpuTokens > tokensToRemove)
-    {
-      m_ctrlQueue->Dequeue ();
-      break;
-    }
-    else
-    {
-      m_ctrlQueue->Enqueue (packet);
-      return;
-    }
+    m_ctrlQueue->Dequeue ();
+    //ProcessControlPacket (pkt,from,tokensToRemove);
   }
+  Simulator::Schedule (MilliSeconds (100), &OFSwitch13Device::CheckControlQueue (),this);
+}
+
+void
+OFSwitch13Device::ProcessControlPacket (Ptr<Packet> packet, Address from, uint32_t tokensToRemove)
+{
+  NS_LOG_FUNCTION (this << packet << from);
 
   struct ofl_msg_header *msg;
   ofl_err error;
@@ -1149,16 +1161,6 @@ OFSwitch13Device::ReceiveFromController (Ptr<Packet> packet, Address from)
   Ipv4Address ctrlIp = InetSocketAddress::ConvertFrom (from).GetIpv4 ();
   NS_LOG_DEBUG ("RX from controller " << ctrlIp << ": " << msgStr);
   free (msgStr);
-  ProcessControlPacket (msg, buffer, senderCtrl);
-}
-
-void
-OFSwitch13Device::ProcessControlPacket (struct ofl_msg_header *msg,
-                                        struct ofpbuf *buffer,
-                                        struct sender senderCtrl)
-{
-  NS_LOG_FUNCTION (this << msg);
-
   // Send the message to handler.
   ofl_err error = handle_control_msg (m_datapath, msg, &senderCtrl);
   if (error)
