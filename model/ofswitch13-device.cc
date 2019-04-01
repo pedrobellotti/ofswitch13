@@ -59,7 +59,7 @@ OFSwitch13Device::OFSwitch13Device ()
   OFSwitch13Device::RegisterDatapath (m_dpId, Ptr<OFSwitch13Device> (this));
   m_rateLimiters.push_back (0);
   //m_ctrlQueue = CreateObject <Queue<Packet> >(); //Classe abstrata nao pode instanciar
-  m_ctrlQueue = CreateObject <DropTailQueue<Packet> >();
+  //m_ctrlQueue = CreateObject <DropTailQueue<Ipv4QueueDiscItem> >();
 }
 
 OFSwitch13Device::~OFSwitch13Device ()
@@ -678,7 +678,9 @@ OFSwitch13Device::DoDispose ()
   m_ports.clear ();
   m_bufferPkts.clear ();
   m_rateLimiters.clear ();
-  m_ctrlQueue = 0;
+  while (!m_ctrlQueue.empty()){
+    m_ctrlQueue.pop();
+  }
 
   for (auto &ctrl : m_controllers)
     {
@@ -1017,20 +1019,20 @@ void
 OFSwitch13Device::ReceiveFromController (Ptr<Packet> packet, Address from)
 {
   NS_LOG_FUNCTION (this << packet << from);
-  m_ctrlQueue->Enqueue (packet); //tem que colocar na fila o par <packet, from>
-  CheckControlQueue (from);
+  m_ctrlQueue.push(std::make_pair(packet,from));
+  CheckControlQueue ();
 }
 
 void
-OFSwitch13Device::CheckControlQueue (Address from) //Nao pode precisar desse parametro
+OFSwitch13Device::CheckControlQueue ()
 {
   NS_LOG_FUNCTION (this);
-  Ptr<const Packet> pkt = 0;
   uint64_t tokensToRemove = 0;
   // If the queue is not empty, process the first packet if there are enough tokens
-  if (!m_ctrlQueue->IsEmpty ())
+  if (!m_ctrlQueue.empty())
     {
-      pkt = m_ctrlQueue->Peek ();
+      std::pair <Ptr<Packet>, Address> item = m_ctrlQueue.front();
+      Ptr<Packet> pkt = item.first;
       //tokensToRemove = pkt->GetSize () * 160000 + 200000000000;
       tokensToRemove = pkt->GetSize () * 16;
       // Check the packet for conformance to CPU processing capacity.
@@ -1040,16 +1042,16 @@ OFSwitch13Device::CheckControlQueue (Address from) //Nao pode precisar desse par
           m_cpuTokens -= tokensToRemove;
           m_cpuConsumed += tokensToRemove;
           // Remove from queue
-          m_ctrlQueue->Dequeue ();
-          // Process the packet
-          ProcessControlPacket (pkt,from); //Trocar o from (está usando o mesmo sempre)
+          m_ctrlQueue.pop();
+          // Process the packet after a delay
+          Simulator::Schedule (MilliSeconds (10), &OFSwitch13Device::ProcessControlPacket, this, pkt, item.second);
         }
     }
-  Simulator::Schedule (MilliSeconds (100), &OFSwitch13Device::CheckControlQueue, this, from);
+  Simulator::Schedule (MilliSeconds (100), &OFSwitch13Device::CheckControlQueue, this);
 }
 
 void
-OFSwitch13Device::ProcessControlPacket (Ptr<const Packet> packet, Address from)
+OFSwitch13Device::ProcessControlPacket (Ptr<Packet> packet, Address from)
 {
   NS_LOG_FUNCTION (this << packet << from);
   struct ofl_msg_header *msg;

@@ -28,6 +28,7 @@
 #include <ns3/tcp-header.h>
 #include <ns3/traced-value.h>
 #include <ns3/queue.h>
+#include <ns3/ipv4-queue-disc-item.h>
 #include <ns3/drop-tail-queue.h>
 #include "ofswitch13-interface.h"
 #include "ofswitch13-socket-handler.h"
@@ -37,7 +38,7 @@ namespace ns3 {
 
 // The following explicit template instantiation declaration prevents modules
 // including this header file from implicitly instantiating DropTailQueue<Packet>.
-extern template class DropTailQueue<Packet>;
+//extern template class DropTailQueue<Ipv4QueueDiscItem>;
 
 class OFSwitch13Port;
 
@@ -469,14 +470,14 @@ private:
   /**
    * Check the control packet queue and remove tokens.
    */
-  void CheckControlQueue (Address from);
+  void CheckControlQueue ();
 
   /**
    * Process an OpenFlow packet from controller.
    * \param packet The packet with the OpenFlow message.
    * \param from The packet sender address.
    */
-  void ProcessControlPacket (Ptr<const Packet> packet, Address from);
+  void ProcessControlPacket (Ptr<Packet> packet, Address from);
 
   /**
    * Create an OpenFlow error message and send it back to the sender
@@ -615,6 +616,9 @@ private:
   /** Structure to save the list of active controllers. */
   typedef std::vector<Ptr<OFSwitch13Device::RemoteController> > CtrlList_t;
 
+  /** Structure to save control packets in a queue */
+  typedef std::queue<std::pair<Ptr<Packet>, Address>> CtrlQueue_t;
+
   /** Structure to save token bucket pointers. */
   typedef std::vector<Ptr<TokenBucket> > PolicingList_t;
 
@@ -684,7 +688,7 @@ private:
   uint64_t              m_cPacketIn;    //!< Pipeline packet in counter.
   uint64_t              m_cPacketOut;   //!< Pipeline packet out counter.
   PolicingList_t        m_rateLimiters; //!< Token Bucket pointers.
-  Ptr<DropTailQueue<Packet> >   m_ctrlQueue;    //!< Controller packet queue.
+  CtrlQueue_t           m_ctrlQueue;    //!< Controller packet queue.
 
   static uint64_t   m_globalDpId;   //!< Global counter for datapath IDs.
   static uint64_t   m_globalPktId;  //!< Global counter for packets IDs.
