@@ -124,8 +124,8 @@ OFSwitch13Device::GetTypeId (void)
                    TimeValue (MilliSeconds (100)),
                    MakeTimeAccessor (&OFSwitch13Device::m_timeout),
                    MakeTimeChecker (MilliSeconds (1), MilliSeconds (1000)))
-    .AddAttribute ("BlockableMemory",
-                   "Configure if the switch has blockable memory.",
+    .AddAttribute ("BlockingMemory",
+                   "Enable the switch blocking memory.",
                    BooleanValue (false),
                    MakeBooleanAccessor (&OFSwitch13Device::m_memoryBlock),
                    MakeBooleanChecker ())
@@ -1034,14 +1034,6 @@ void
 OFSwitch13Device::ReceiveFromController (Ptr<Packet> packet, Address from)
 {
   NS_LOG_FUNCTION (this << packet << from);
-  // Check if the switch memory is blocked
-  if (m_memoryBlock && m_isBlocked)
-    {
-      // Packet will be dropped. Increase counter and fire drop trace source.
-      NS_LOG_DEBUG ("Drop control packet due to memory being blocked.");
-      m_loadDropTrace (packet);
-      return;
-    }
   // Enqueue the pair packet, from
   m_ctrlQueue.push (std::make_pair (packet,from));
   CheckControlQueue ();
@@ -1057,7 +1049,6 @@ OFSwitch13Device::CheckControlQueue ()
     {
       std::pair <Ptr<Packet>, Address> item = m_ctrlQueue.front ();
       Ptr<Packet> pkt = item.first;
-      //tokensToRemove = pkt->GetSize () * 160000 + 200000000000;
       tokensToRemove = pkt->GetSize () * 16;
       // Check the packet for conformance to CPU processing capacity.
       if (m_cpuTokens > tokensToRemove)
@@ -1067,7 +1058,7 @@ OFSwitch13Device::CheckControlQueue ()
           m_cpuConsumed += tokensToRemove;
           // Remove from queue
           m_ctrlQueue.pop ();
-          // Blocks the memory
+          // Block the memory
           m_isBlocked = true;
           // Process the packet after a delay
           Simulator::Schedule (MilliSeconds (10), &OFSwitch13Device::ProcessControlPacket, this, pkt, item.second);
