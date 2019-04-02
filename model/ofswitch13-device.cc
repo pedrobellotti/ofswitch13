@@ -124,6 +124,11 @@ OFSwitch13Device::GetTypeId (void)
                    TimeValue (MilliSeconds (100)),
                    MakeTimeAccessor (&OFSwitch13Device::m_timeout),
                    MakeTimeChecker (MilliSeconds (1), MilliSeconds (1000)))
+    .AddAttribute ("BlockableMemory",
+                   "Configure if the switch has blockable memory.",
+                   BooleanValue (false),
+                   MakeBooleanAccessor (&OFSwitch13Device::m_memoryBlock),
+                   MakeBooleanChecker ())
 
     .AddTraceSource ("BufferExpire",
                      "Trace source indicating an expired packet in buffer.",
@@ -449,6 +454,15 @@ OFSwitch13Device::ReceiveFromSwitchPort (Ptr<Packet> packet, uint32_t portNo,
 {
   NS_LOG_FUNCTION (this << packet << portNo << tunnelId);
 
+  // Check if the switch memory is blocked
+  if (m_memoryBlock && m_isBlocked)
+    {
+      // Packet will be dropped. Increase counter and fire drop trace source.
+      NS_LOG_UNCOND ("Drop packet due to memory being blocked.");
+      m_loadDropTrace (packet);
+      return;
+    }
+
   // Check the packet for conformance to CPU processing capacity.
   uint32_t pktSizeBits = packet->GetSize () * 8;
   if (m_cpuTokens < pktSizeBits)
@@ -678,9 +692,10 @@ OFSwitch13Device::DoDispose ()
   m_ports.clear ();
   m_bufferPkts.clear ();
   m_rateLimiters.clear ();
-  while (!m_ctrlQueue.empty()){
-    m_ctrlQueue.pop();
-  }
+  while (!m_ctrlQueue.empty ())
+    {
+      m_ctrlQueue.pop ();
+    }
 
   for (auto &ctrl : m_controllers)
     {
@@ -1019,7 +1034,16 @@ void
 OFSwitch13Device::ReceiveFromController (Ptr<Packet> packet, Address from)
 {
   NS_LOG_FUNCTION (this << packet << from);
-  m_ctrlQueue.push(std::make_pair(packet,from));
+  // Check if the switch memory is blocked
+  if (m_memoryBlock && m_isBlocked)
+    {
+      // Packet will be dropped. Increase counter and fire drop trace source.
+      NS_LOG_UNCOND ("Drop control packet due to memory being blocked.");
+      m_loadDropTrace (packet);
+      return;
+    }
+  // Enqueue the pair packet, from
+  m_ctrlQueue.push (std::make_pair (packet,from));
   CheckControlQueue ();
 }
 
@@ -1029,9 +1053,9 @@ OFSwitch13Device::CheckControlQueue ()
   NS_LOG_FUNCTION (this);
   uint64_t tokensToRemove = 0;
   // If the queue is not empty, process the first packet if there are enough tokens
-  if (!m_ctrlQueue.empty())
+  if (!m_ctrlQueue.empty ())
     {
-      std::pair <Ptr<Packet>, Address> item = m_ctrlQueue.front();
+      std::pair <Ptr<Packet>, Address> item = m_ctrlQueue.front ();
       Ptr<Packet> pkt = item.first;
       //tokensToRemove = pkt->GetSize () * 160000 + 200000000000;
       tokensToRemove = pkt->GetSize () * 16;
@@ -1042,7 +1066,9 @@ OFSwitch13Device::CheckControlQueue ()
           m_cpuTokens -= tokensToRemove;
           m_cpuConsumed += tokensToRemove;
           // Remove from queue
-          m_ctrlQueue.pop();
+          m_ctrlQueue.pop ();
+          // Blocks the memory
+          m_isBlocked = true;
           // Process the packet after a delay
           Simulator::Schedule (MilliSeconds (10), &OFSwitch13Device::ProcessControlPacket, this, pkt, item.second);
         }
@@ -1054,6 +1080,9 @@ void
 OFSwitch13Device::ProcessControlPacket (Ptr<Packet> packet, Address from)
 {
   NS_LOG_FUNCTION (this << packet << from);
+  // Unblock the memory
+  m_isBlocked = false;
+
   struct ofl_msg_header *msg;
   ofl_err error;
 

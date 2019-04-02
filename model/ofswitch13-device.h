@@ -617,7 +617,7 @@ private:
   typedef std::vector<Ptr<OFSwitch13Device::RemoteController> > CtrlList_t;
 
   /** Structure to save control packets in a queue */
-  typedef std::queue<std::pair<Ptr<Packet>, Address>> CtrlQueue_t;
+  typedef std::queue<std::pair<Ptr<Packet>, Address> > CtrlQueue_t;
 
   /** Structure to save token bucket pointers. */
   typedef std::vector<Ptr<TokenBucket> > PolicingList_t;
@@ -668,6 +668,8 @@ private:
   Time                  m_timeout;      //!< Datapath timeout interval.
   Time                  m_lastTimeout;  //!< Datapath last timeout.
   Time                  m_tcamDelay;    //!< Flow Table TCAM lookup delay.
+  bool                  m_memoryBlock;  //!< Switch has blockable memory
+  bool                  m_isBlocked;    //!< Memory blocked for reading/writing
   std::string           m_libLog;       //!< The ofsoftswitch13 library log level.
   struct datapath*      m_datapath;     //!< ofsoftswitch13 datapath structure.
   PortList_t            m_ports;        //!< List of switch ports.
