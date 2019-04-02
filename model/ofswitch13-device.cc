@@ -458,7 +458,7 @@ OFSwitch13Device::ReceiveFromSwitchPort (Ptr<Packet> packet, uint32_t portNo,
   if (m_memoryBlock && m_isBlocked)
     {
       // Packet will be dropped. Increase counter and fire drop trace source.
-      NS_LOG_UNCOND ("Drop packet due to memory being blocked.");
+      NS_LOG_DEBUG ("Drop packet due to memory being blocked.");
       m_loadDropTrace (packet);
       return;
     }
@@ -1038,7 +1038,7 @@ OFSwitch13Device::ReceiveFromController (Ptr<Packet> packet, Address from)
   if (m_memoryBlock && m_isBlocked)
     {
       // Packet will be dropped. Increase counter and fire drop trace source.
-      NS_LOG_UNCOND ("Drop control packet due to memory being blocked.");
+      NS_LOG_DEBUG ("Drop control packet due to memory being blocked.");
       m_loadDropTrace (packet);
       return;
     }
