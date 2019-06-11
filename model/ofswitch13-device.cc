@@ -1060,8 +1060,8 @@ OFSwitch13Device::CheckControlQueue ()
           m_ctrlQueue.pop ();
           // Block the memory
           m_isBlocked = true;
-          // Process the packet after a delay
-          Simulator::Schedule (MilliSeconds (10), &OFSwitch13Device::ProcessControlPacket, this, pkt, item.second);
+          // Process the packet after a delay 64bytes = 0,125ms
+          Simulator::Schedule (MicroSeconds (125), &OFSwitch13Device::ProcessControlPacket, this, pkt, item.second);
         }
     }
   Simulator::Schedule (MilliSeconds (100), &OFSwitch13Device::CheckControlQueue, this);
